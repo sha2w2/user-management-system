@@ -1,10 +1,14 @@
 <?php
-require_once __DIR__ . '/../autoload.php';
+require_once 'C:\xampp\htdocs\user-management-system\autoload.php';
 
 use App\Services\RegistrationService;
 use App\Services\AuthService;
 
+session_start();
+
+// Initialize services
 $authService = new AuthService();
+$registrationService = new RegistrationService();
 
 // Redirect if already logged in
 if ($authService->isAuthenticated()) {
@@ -13,29 +17,43 @@ if ($authService->isAuthenticated()) {
     exit;
 }
 
-$registrationService = new RegistrationService();
-
 // Handle registration form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
-    $name = $_POST['name'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $confirmPassword = $_POST['confirm_password'] ?? '';
-    
-    // Validate inputs
-    if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
-        $error = "All fields are required.";
-    } elseif ($password !== $confirmPassword) {
-        $error = "Passwords do not match.";
-    } elseif (strlen($password) < 8) {
-        $error = "Password must be at least 8 characters long.";
-    } else {
-        if ($registrationService->register($name, $email, $password)) {
-            header("Location: /index.php?registration=success");
-            exit;
-        } else {
-            $error = "Email already exists. Please use a different email.";
+    try {
+        // Sanitize inputs
+        $name = filter_input(INPUT_POST, 'name', FILTER_SANITIZE_STRING);
+        $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+        
+        // Validate inputs
+        if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
+            throw new Exception("All fields are required");
         }
+        
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception("Invalid email format");
+        }
+        
+        if ($password !== $confirmPassword) {
+            throw new Exception("Passwords do not match");
+        }
+        
+        if (strlen($password) < 8) {
+            throw new Exception("Password must be at least 8 characters long");
+        }
+
+        // Attempt registration
+        if ($registrationService->register($name, $email, $password)) {
+            $_SESSION['registration_success'] = true;
+            header("Location: /login.php?registration=success");
+            exit;
+        }
+        
+        throw new Exception("Email already exists");
+        
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
 }
 ?>
@@ -51,23 +69,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 <body>
     <div class="register-container">
         <h1>Register</h1>
+        
         <?php if (isset($error)): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+            <div class="alert alert-danger"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
         
-        <form method="POST">
+        <form method="POST" novalidate>
             <div class="form-group">
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="name" required>
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" name="name" 
+                       value="<?= isset($_POST['name']) ? htmlspecialchars($_POST['name']) : '' ?>" 
+                       required>
             </div>
             
             <div class="form-group">
                 <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required>
+                <input type="email" id="email" name="email"
+                       value="<?= isset($_POST['email']) ? htmlspecialchars($_POST['email']) : '' ?>"
+                       required>
             </div>
             
             <div class="form-group">
-                <label for="password">Password:</label>
+                <label for="password">Password (min 8 chars):</label>
                 <input type="password" id="password" name="password" required minlength="8">
             </div>
             
@@ -76,10 +99,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
             </div>
             
-            <button type="submit" name="register">Register</button>
+            <button type="submit" name="register" class="btn-primary">Create Account</button>
         </form>
         
-        <p>Already have an account? <a href="/index.php">Login here</a></p>
+        <div class="login-link">
+            Already have an account? <a href="/login.php">Sign in</a>
+        </div>
     </div>
 </body>
 </html>
