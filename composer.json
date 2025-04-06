@@ -1,0 +1,20 @@
+{
+    "name": "sha2w2/user-management-system",
+    "description": "User Management System with PHP OOP",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "ext-pdo": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "App/"
+        }
+    },
+    "authors": [
+        {
+            "name": "sha2w2",
+            "email": "shanicesagonda@gmail.com"
+        }
+    ]
+}
